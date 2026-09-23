@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Voice Dictation</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<style>
+  body {
+    font-family: -apple-system, Segoe UI, Arial, sans-serif;
+    max-width: 720px;
+    margin: 40px auto;
+    padding: 0 20px;
+    background: #1e1e1e;
+    color: #e6e6e6;
+  }
+  h1 { font-size: 24px; font-weight: 600; margin: 0; }
+  .title-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+  .title-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    flex-shrink: 0;
+  }
+  .header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 30px;
+  }
+  .subtitle {
+    font-size: 13px;
+    color: #888;
+  }
+  #lang {
+    font-size: 14px;
+    padding: 6px 10px;
+    background: #3a3a3a;
+    color: #fff;
+    border: 1px solid #555;
+    border-radius: 6px;
+    flex-shrink: 0;
+  }
+  #status {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 13px;
+    margin-bottom: 16px;
+  }
+  #status.idle { background: #333; color: #aaa; }
+  #status.listening { background: #2e7d32; color: #fff; }
+  button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 14px;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    background: #3a3a3a;
+    color: #fff;
+  }
+  button:hover { filter: brightness(1.15); }
+  button svg { flex-shrink: 0; }
+  .actions { margin-bottom: 16px; }
+  .start-row {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 24px;
+  }
+  #toggle {
+    background: #0b5fff;
+    padding: 14px 56px;
+    font-size: 16px;
+    font-weight: 600;
+  }
+  #toggle.active { background: #d32f2f; }
+  .secondary-row {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+  }
+  .secondary-row.hidden { display: none; }
+  .secondary-row button { min-width: 172px; }
+  textarea {
+    width: 100%;
+    height: 260px;
+    font-size: 16px;
+    line-height: 1.5;
+    padding: 12px;
+    box-sizing: border-box;
+    background: #111;
+    color: #f0f0f0;
+    border: 1px solid #444;
+    border-radius: 6px;
+    resize: both;
+    margin-bottom: 26px;
+  }
+  #copyFeedback {
+    font-size: 13px;
+    color: #4caf50;
+    margin-left: 8px;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+</style>
+</head>
+<body>
+  <div class="header-row">
+    <div>
+      <div class="title-row">
+        <img src="favicon.svg" alt="" class="title-icon">
+        <h1>Speak Instead of Typing</h1>
+      </div>
+      <div class="subtitle">Press Space to start or stop recording — stopping copies everything automatically. <span id="subtitleCtrl">Ctrl+C</span> copies anytime, Delete clears the text.</div>
+    </div>
+    <select id="lang" aria-label="Dictation language">
+      <option value="pl-PL" selected>Polish</option>
+      <option value="en-US">English (US)</option>
+      <option value="en-GB">English (UK)</option>
+      <option value="de-DE">German</option>
+      <option value="fr-FR">French</option>
+      <option value="es-ES">Spanish</option>
+      <option value="it-IT">Italian</option>
+      <option value="pt-PT">Portuguese</option>
+      <option value="pt-BR">Portuguese (BR)</option>
+      <option value="nl-NL">Dutch</option>
+      <option value="ru-RU">Russian</option>
+      <option value="uk-UA">Ukrainian</option>
+      <option value="cs-CZ">Czech</option>
+      <option value="sk-SK">Slovak</option>
+      <option value="sv-SE">Swedish</option>
+      <option value="da-DK">Danish</option>
+      <option value="nb-NO">Norwegian</option>
+      <option value="fi-FI">Finnish</option>
+      <option value="tr-TR">Turkish</option>
+      <option value="el-GR">Greek</option>
+      <option value="ro-RO">Romanian</option>
+      <option value="hu-HU">Hungarian</option>
+      <option value="ja-JP">Japanese</option>
+      <option value="ko-KR">Korean</option>
+      <option value="zh-CN">Chinese (Simplified)</option>
+      <option value="ar-SA">Arabic</option>
+    </select>
+  </div>
+  <div id="status" class="idle">stopped</div><span id="copyFeedback">copied to clipboard</span>
+  <textarea id="transcript" placeholder="Your text will appear here..."></textarea>
+  <div class="actions">
+    <div class="start-row">
+      <button id="toggle">
+        <svg id="micIcon" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 14c1.66 0 2.99-1.34 2.99-3L15 5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3m5.3-3c0 3-2.54 5.1-5.3 5.1S6.7 14 6.7 11H5c0 3.41 2.72 6.23 6 6.72V21h2v-3.28c3.28-.48 6-3.3 6-6.72z"/></svg>
+        <svg id="stopIcon" width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="display:none"><path d="M6 6h12v12H6z"/></svg>
+        <span id="toggleLabel">Start dictation</span>
+      </button>
+    </div>
+    <div class="secondary-row hidden" id="secondaryActions">
+      <button id="copy">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+        Copy
+      </button>
+      <button id="clear">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+        Clear
+      </button>
+    </div>
+  </div>
+
+  <script>
+    // Web Speech API entry point, prefixed on Chrome/webkit browsers.
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const statusEl = document.getElementById('status');
+    const toggleBtn = document.getElementById('toggle');
+    const copyBtn = document.getElementById('copy');
+    const clearBtn = document.getElementById('clear');
+    const copyFeedback = document.getElementById('copyFeedback');
+    const textarea = document.getElementById('transcript');
+    const langSelect = document.getElementById('lang');
+    const secondaryActions = document.getElementById('secondaryActions');
+    const micIcon = document.getElementById('micIcon');
+    const stopIcon = document.getElementById('stopIcon');
+    const toggleLabel = document.getElementById('toggleLabel');
+    const subtitleCtrl = document.getElementById('subtitleCtrl');
+
+    // macOS uses Cmd+C instead of Ctrl+C, so the hint text is adjusted accordingly.
+    const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+    if (isMac) subtitleCtrl.textContent = '⌘C';
+
+    // Disable the app entirely if the browser has no speech recognition support.
+    if (!SpeechRecognition) {
+      statusEl.textContent = 'browser not supported (use Chrome)';
+      toggleBtn.disabled = true;
+    }
+
+    let recognition = null; // current SpeechRecognition instance, recreated on each start
+    let isListening = false; // whether dictation is currently active
+    let manualStop = false; // true once the user/error explicitly stopped, to prevent auto-restart
+    let finalTranscript = ''; // accumulated finalized text across recognition restarts
+    const startSound = new Audio('https://e8c01a4a70d545e9d2b441388f10b6ae.cdn.bubble.io/f1757048432622x295924898611097150/start.mp3');
+    const stopSound = new Audio('https://e8c01a4a70d545e9d2b441388f10b6ae.cdn.bubble.io/f1757048703370x399294113285371140/stop.mp3');
+    startSound.preload = 'auto';
+    stopSound.preload = 'auto';
+
+    // Plays a sound cue from the beginning, ignoring playback errors (e.g. no user gesture yet).
+    function playSound(sound) {
+      sound.currentTime = 0;
+      sound.play().catch(() => {});
+    }
+
+    function playStartSound() { playSound(startSound); }
+    function playStopSound() { playSound(stopSound); }
+
+    // Creates and configures a new SpeechRecognition instance and wires up its event handlers.
+    function setupRecognition() {
+      recognition = new SpeechRecognition();
+      recognition.lang = langSelect.value;
+      recognition.continuous = true;
+      recognition.interimResults = true;
+
+      // Appends newly finalized speech to the transcript and shows in-progress text separately.
+      recognition.onresult = function(event) {
+        let interim = '';
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const text = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            finalTranscript += text + ' ';
+          } else {
+            interim += text;
+          }
+        }
+        textarea.value = (finalTranscript + interim).trim();
+        updateActionsVisibility();
+      };
+
+      // The browser's recognition session ends on its own periodically; restart it unless the
+      // user (or an error) explicitly stopped dictation.
+      recognition.onend = function() {
+        if (isListening && !manualStop) {
+          try { recognition.start(); return; } catch (e) {}
+        }
+        isListening = false;
+        updateUI();
+      };
+
+      // Ignores transient errors (no speech, network blip, aborted) but surfaces a message and
+      // stops dictation on a real failure such as denied microphone access.
+      recognition.onerror = function(event) {
+        if (event.error === 'no-speech' || event.error === 'network' || event.error === 'aborted') {
+          return;
+        }
+        if (event.error === 'not-allowed') {
+          statusEl.textContent = 'microphone access denied';
+        }
+        playStopSound();
+        manualStop = true;
+        isListening = false;
+        updateUI();
+      };
+    }
+
+    // Shows the Copy/Clear buttons only once there's text to act on.
+    function updateActionsVisibility() {
+      secondaryActions.classList.toggle('hidden', textarea.value.trim().length === 0);
+    }
+
+    // Syncs status text, toggle button icon/label, and language select state with isListening.
+    function updateUI() {
+      langSelect.disabled = isListening;
+      if (isListening) {
+        statusEl.textContent = 'listening...';
+        statusEl.className = 'listening';
+        toggleLabel.textContent = 'Stop';
+        toggleBtn.classList.add('active');
+        micIcon.style.display = 'none';
+        stopIcon.style.display = '';
+      } else {
+        statusEl.textContent = 'stopped';
+        statusEl.className = 'idle';
+        toggleLabel.textContent = 'Start dictation';
+        toggleBtn.classList.remove('active');
+        micIcon.style.display = '';
+        stopIcon.style.display = 'none';
+      }
+    }
+
+    // Copies the transcript to the clipboard and shows a brief success/failure message.
+    function copyToClipboard() {
+      navigator.clipboard.writeText(textarea.value).then(function() {
+        copyFeedback.textContent = 'copied to clipboard';
+        copyFeedback.style.color = '#4caf50';
+        copyFeedback.style.opacity = '1';
+        setTimeout(function() { copyFeedback.style.opacity = '0'; }, 1200);
+      }).catch(function(err) {
+        copyFeedback.textContent = 'copy failed — click into the browser tab and copy manually (Ctrl+A, Ctrl+C)';
+        copyFeedback.style.color = '#e53935';
+        copyFeedback.style.opacity = '1';
+      });
+    }
+
+    // Starts a new dictation session: plays a cue, resets stop flags, and begins recognition.
+    function startListening() {
+      if (isListening) return;
+      playStartSound();
+      manualStop = false;
+      isListening = true;
+      setupRecognition();
+      recognition.start();
+      updateUI();
+    }
+
+    // Stops dictation, marks it as a manual stop (so it won't auto-restart), and copies the result.
+    function stopListening() {
+      if (!isListening) return;
+      playStopSound();
+      manualStop = true;
+      isListening = false;
+      if (recognition) recognition.stop();
+      updateUI();
+      copyToClipboard();
+    }
+
+    // Wipes the transcript text and the accumulated finalized text.
+    function clearTranscript() {
+      finalTranscript = '';
+      textarea.value = '';
+      updateActionsVisibility();
+    }
+
+    // Main toggle button starts or stops dictation depending on current state.
+    toggleBtn.addEventListener('click', function() {
+      if (!isListening) startListening(); else stopListening();
+    });
+
+    copyBtn.addEventListener('click', copyToClipboard);
+
+    // Global keyboard shortcuts: Space toggles dictation, Delete/Backspace clears, Ctrl/Cmd+C copies.
+    document.addEventListener('keydown', function(e) {
+      if (e.target === textarea) return;
+      if (e.code === 'Space') {
+        e.preventDefault();
+        if (!isListening) startListening(); else stopListening();
+        return;
+      }
+      const hasText = textarea.value.trim().length > 0;
+      if (!hasText) return;
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        e.preventDefault();
+        clearTranscript();
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
+        e.preventDefault();
+        copyToClipboard();
+      }
+    });
+
+    clearBtn.addEventListener('click', clearTranscript);
+
+    textarea.addEventListener('input', updateActionsVisibility);
+  </script>
+</body>
+</html>
